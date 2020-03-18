@@ -11,8 +11,8 @@ class UpDownPatterns:
     def __init__(self, sim_params, neuron_params):
 
         self.N_total = sim_params.get('N_total')
-        self.NE = int((self.N_total/5)*4)
-        self.NI = int((self.N_total/5)*1)
+        self.NE = sim_params.get('NE')
+        self.NI = sim_params.get('NI')
         # set neuron parameters
         self.neuron_params = neuron_params
         self.J_ex = sim_params.get('J_ex')

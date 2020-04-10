@@ -37,7 +37,6 @@ class UpDownPatterns:
     def simulate(self, pattern):
         
         # ====== RESET =========
-        #TODO check if its better to use ResetNetwork() here 
         nest.ResetKernel() # gets rid of all nodes, customised models and resets internal clock to 0 
     
         nest.SetKernelStatus({'resolution': self.resolution, 'print_time': False, 'local_num_threads': self.n_threads})
@@ -53,13 +52,13 @@ class UpDownPatterns:
             nest.SetDefaults('aeif_cond_exp', self.model_params)
                 
             if pattern[i] == 1:
-                # create supra population of given group size
+                # create supra population of given group size with the set parameter values
                 n_supra = nest.Create('aeif_cond_exp', group_size)
                 
                 SUPRA_pop.append(n_supra)
             
             elif pattern[i] == 0:
-                # create sub population of given group size 
+                # create sub population of given group size with the set parameter values
                 n_sub = nest.Create('aeif_cond_exp', group_size)
                 
                 SUB_pop.append(n_sub)
@@ -79,7 +78,7 @@ class UpDownPatterns:
         # create spikedetector
         spikedet = nest.Create('spike_detector')
         # create multimeter that records the voltage
-        multimet = nest.Create('multimeter', params={'record_from': ['V_m']})
+        multimet = nest.Create('multimeter', params={'record_from': ['V_m', 'w', 'g_ex', 'g_in']})
 
         # set status voltage meter with a recording interval 
         nest.SetStatus(multimet, params={'interval':1.})
@@ -114,11 +113,13 @@ class UpDownPatterns:
         spike_neurons = nest.GetStatus(spikedet, 'events')[0]['senders']
         
         # multimeter data
-        volt_neuron_ids = nest.GetStatus(multimet, 'events')[0]['senders']
-        volt_times = nest.GetStatus(multimet, 'events')[0]['times']
-        volt_trace = nest.GetStatus(multimet, 'events')[0]['V_m']
+        events = nest.GetStatus(multimet)[0]['events']
+        etimes = events['times']
+#         volt_neuron_ids = nest.GetStatus(multimet, 'events')[0]['senders']
+#         voltage_traces = nest.GetStatus(multimet, 'events')[0]['V_m']
+#         voltage_times = nest.GetStatus(multimet, 'events')[0]['times']
 
-        return multimet, spikedet, spike_times, spike_neurons
+        return spikedet, multimet, events, etimes, spike_times, spike_neurons
     
 
 class HelperFuncs:

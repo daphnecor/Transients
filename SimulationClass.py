@@ -1,5 +1,5 @@
 
- # import dependencies
+# import dependencies
 import numpy as np
 import nest
 import nest.raster_plot
@@ -117,11 +117,15 @@ class UpDownPatterns:
         spike_neurons = nest.GetStatus(spikedet, 'events')[0]['senders']
         
         # multimeter data
-        volt_neuron_ids = nest.GetStatus(multimet, 'events')[0]['senders']
-        volt_times = nest.GetStatus(multimet, 'events')[0]['times']
-        volt_trace = nest.GetStatus(multimet, 'events')[0]['V_m']
+        events = nest.GetStatus(multimet)[0]['events']
+        etimes = events['times']
 
-        return multimet, spikedet, spike_times, spike_neurons
+        # multimeter data
+        # volt_neuron_ids = nest.GetStatus(multimet, 'events')[0]['senders']
+        # volt_times = nest.GetStatus(multimet, 'events')[0]['times']
+        # volt_trace = nest.GetStatus(multimet, 'events')[0]['V_m']
+
+        return spikedet, multimet, events, etimes, spike_times, spike_neurons
     
 
 class HelperFuncs:

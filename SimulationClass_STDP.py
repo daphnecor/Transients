@@ -126,3 +126,93 @@ class UpDownPatterns:
         # volt_trace = nest.GetStatus(multimet, 'events')[0]['V_m']
 
         return spikedet, multimet, events, etimes, spike_times, spike_neurons
+    
+    
+class HelperFuncs:
+    '''
+    useful helper functions
+    '''
+    
+    def list2str(self, list):
+        mystr = ''
+        mystr = mystr.join([str(x) for x in list])
+        return mystr
+    
+
+    def make_permutations(self, seed=[0,0,0,0,1,1,1,1]):
+        '''Returns all permutations for given binary list'''
+        
+        for comb in itertools.combinations(range(len(seed)), seed.count(1)):
+            result = [0] * len(seed)
+            for i in comb:
+                result[i] = 1
+            yield result
+        return 
+        
+    def circshift(self, V, offset=0):
+       
+        l = len(V)
+        if type(V) is list:
+            return V[-offset%l:]+V[:-offset%l]
+        elif type(V) is np.ndarray:
+            return list(V[-offset%l:])+list(V[:-offset%l])
+    
+    def reorder(self, neuronids, numneurons, numgroups=8, offset=1):
+        
+        neworder = []
+        # Per group neuron counts
+        Gr = np.array([len(np.where(np.arange(numneurons)%numgroups==n)[0]) for n in range(numgroups-1)])
+        # CS_Gr = cumsum(circshift(hstack([0,Gr]),-1))
+        Gr = np.cumsum(np.hstack([0,Gr]))
+        Gr = np.array(self.circshift(Gr,offset))
+        for s in neuronids:
+            o = s // numgroups
+            g = s % numgroups
+            #print(int(g)+into)
+            neworder.append(Gr[int(g)] + o)
+            # neworder.append(int(sum(Gr[0:g]) + o))
+            # group.append(g)
+        # print "last neuron id to fire (reordered): "+str(max(array(neworder)))
+        return neworder
+    
+    def get_transient_data(spike_times_arr, spike_neurons_arr, sim_params):
+        '''
+        Uses the information from the simulation run to get information about the transient.
+        '''
+        transient_spikes = []
+        transient_lifetime = []
+        transient_uniquen = []
+        transient_time_arr = []
+
+        stim_end = sim_params['stim_end']
+
+        for trial in range(len(spike_times_arr)):
+
+            # select data from experiment / trial
+            times = spike_times_arr[trial]
+            neurons = spike_neurons_arr[trial]
+
+            # === number of spikes ===
+            num_trans_spikes = sum(1*(times > stim_end))
+            transient_spikes.append(num_trans_spikes)
+
+            # === transient lifetime ===
+            transient_time = times[times > stim_end]
+            transient_time_arr.append(transient_time)
+
+            if num_trans_spikes == 0:
+                transient_lifetime.append(0)
+            else:
+                t_dur = round(max(transient_time_arr[trial]) - stim_end,2)
+                transient_lifetime.append(t_dur)
+
+            # === transient_size ===
+            transients = 1*(times > stim_end)
+            transient_indices = np.argwhere(transients)
+            # take the neurons from these indices
+            active_neurons = np.unique(neurons[transient_indices])
+            transient_uniquen.append(active_neurons)
+
+        transient_size = [len(i) for i in transient_uniquen]
+
+        return transient_spikes, transient_lifetime, transient_size

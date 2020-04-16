@@ -4,17 +4,17 @@ import numpy as np
 import nest
 import nest.raster_plot
 import itertools
+import matplotlib.pyplot as plt
 
 
 class UpDownPatterns:
     
-    def __init__(self, sim_params, neuron_params):
+    def __init__(self, sim_params, neuron_params, syn_params_ex, syn_params_in, STDP='None'):
 
+        self.STDP = STDP
         self.N_total = sim_params.get('N_total')
         self.NE = sim_params.get('NE')
         self.NI = sim_params.get('NI')
-        # set neuron parameters
-        self.neuron_params = neuron_params
         self.J_ex = sim_params.get('J_ex')
         self.J_in = sim_params.get('J_in')
         self.eps = sim_params.get('eps')
@@ -28,6 +28,13 @@ class UpDownPatterns:
         self.simtime = sim_params.get('simtime')
         self.sub_fr = sim_params.get('sub_fr')
         self.sup_fr = sim_params.get('sup_fr')
+        
+        # set neuron parameters
+        self.neuron_params = neuron_params
+        
+        # set synapse parameters
+        self.syn_params_ex = syn_params_ex
+        self.syn_params_in = syn_params_in
 
         self.set_stim_amps()  # input current corresponding to 0/1 in pattern
 
@@ -58,13 +65,11 @@ class UpDownPatterns:
             if pattern[i] == 1:
                 # create supra population of given group size
                 n_supra = nest.Create('iaf_cond_alpha', group_size)
-                
                 SUPRA_pop.append(n_supra)
             
             elif pattern[i] == 0:
                 # create sub population of given group size 
                 n_sub = nest.Create('iaf_cond_alpha', group_size)
-                
                 SUB_pop.append(n_sub)
         
         # convert to one tuple because NEST likes that
@@ -90,15 +95,57 @@ class UpDownPatterns:
         # set status spikedetector
         nest.SetStatus(spikedet, params={"withgid": True, "withtime": True})
         
-        # ====== CONNECT NEURONS =========
-        nest.CopyModel(existing='static_synapse', new='syn_ex', params={'weight':self.J_ex, 'delay': self.delay})
-        nest.CopyModel(existing='static_synapse', new='syn_in', params={'weight':self.J_in, 'delay': self.delay})
-        # how we want to connect the neurons
-        conn_rule = {'rule': 'pairwise_bernoulli', 'p': self.eps} 
+        # ====== PARAMETERISE SYNAPSES AND CONNECT NEURONS =========
+     
+        # define network connectivity
+        conn_dict = {'rule': 'pairwise_bernoulli', 'p': self.eps} 
+        
+        static_ex_params = {'model':'static_synapse','weight': self.J_ex, 'delay': self.delay}
+        static_in_params = {'model':'static_synapse','weight': self.J_in, 'delay': self.delay}
+        
+        '''
+        For the creation of custom synapse types from already existing synapse types, the command CopyModel is used. 
+        '''
+        
+        if self.STDP == 'ALL':
+          
+            # make connections between the two populations
+            # from exc neurons to all neurons
+            nest.Connect(neurons_all[:self.NE], neurons_all, conn_dict, self.syn_params_ex)
+            # from interneurons to all neurons
+            nest.Connect(neurons_all[self.NE:], neurons_all, conn_dict, self.syn_params_in)
+   
+        elif self.STDP == 'EXC':
          
-        # make connections between the two populations
-        nest.Connect(neurons_all[:self.NE], neurons_all, conn_spec=conn_rule, syn_spec='syn_ex' )
-        nest.Connect(neurons_all[self.NE:], neurons_all, conn_spec=conn_rule, syn_spec='syn_in' )
+            # keep the inhibitory synapses static
+            #nest.CopyModel(existing='static_synapse', new='syn_in', params={'weight':self.J_in, 'delay': self.delay})
+            
+            # make connections between the two populations
+            # from exc neurons to all neurons
+            nest.Connect(neurons_all[:self.NE], neurons_all, conn_dict, self.syn_params_ex)
+            # from interneurons to all neurons
+            nest.Connect(neurons_all[self.NE:], neurons_all, conn_dict, static_in_params)
+        
+        elif self.STDP == 'INH':
+            
+            # keep the excitatory synapses static
+            #nest.CopyModel(existing='static_synapse', new='syn_ex', params={'weight':self.J_ex, 'delay': self.delay})
+            
+            # make connections between the two populations
+            # from exc neurons to all neurons
+            nest.Connect(neurons_all[:self.NE], neurons_all, conn_dict, static_ex_params)
+            # from interneurons to all neurons
+            nest.Connect(neurons_all[self.NE:], neurons_all, conn_dict, self.syn_params_in)
+        
+        else:
+            # synapses will be static (no change in weights)
+            nest.CopyModel(existing='static_synapse', new='syn_ex', params={'weight':self.J_ex, 'delay': self.delay})
+            nest.CopyModel(existing='static_synapse', new='syn_in', params={'weight':self.J_in, 'delay': self.delay})
+
+            # make connections between the two populations
+            nest.Connect(neurons_all[:self.NE], neurons_all, conn_spec=conn_dict, syn_spec='syn_ex' )
+            nest.Connect(neurons_all[self.NE:], neurons_all, conn_spec=conn_dict, syn_spec='syn_in' )
+        
         
         # ====== CONNECT TO DEVICES =========
         nest.Connect(neurons_all, spikedet)
@@ -148,34 +195,9 @@ class HelperFuncs:
                 result[i] = 1
             yield result
         return 
-        
-    def circshift(self, V, offset=0):
-       
-        l = len(V)
-        if type(V) is list:
-            return V[-offset%l:]+V[:-offset%l]
-        elif type(V) is np.ndarray:
-            return list(V[-offset%l:])+list(V[:-offset%l])
     
-    def reorder(self, neuronids, numneurons, numgroups=8, offset=1):
-        
-        neworder = []
-        # Per group neuron counts
-        Gr = np.array([len(np.where(np.arange(numneurons)%numgroups==n)[0]) for n in range(numgroups-1)])
-        # CS_Gr = cumsum(circshift(hstack([0,Gr]),-1))
-        Gr = np.cumsum(np.hstack([0,Gr]))
-        Gr = np.array(self.circshift(Gr,offset))
-        for s in neuronids:
-            o = s // numgroups
-            g = s % numgroups
-            #print(int(g)+into)
-            neworder.append(Gr[int(g)] + o)
-            # neworder.append(int(sum(Gr[0:g]) + o))
-            # group.append(g)
-        # print "last neuron id to fire (reordered): "+str(max(array(neworder)))
-        return neworder
     
-    def get_transient_data(spike_times_arr, spike_neurons_arr, sim_params):
+    def get_transient_data(self, spike_times_arr, spike_neurons_arr, sim_params):
         '''
         Uses the information from the simulation run to get information about the transient.
         '''
@@ -216,3 +238,60 @@ class HelperFuncs:
         transient_size = [len(i) for i in transient_uniquen]
 
         return transient_spikes, transient_lifetime, transient_size
+
+    def plot_statevars(self, spike_times_arr, spike_neurons_arr, times_lst, events_lst, idx, stim_time=50):
+        '''
+        plot the dynamic state variables & raster plots
+        '''
+
+        # ==== CHOOSE AN INDEX ====
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(22,10))
+        #fig.suptitle(f'Pattern: {H.list2str(patterns[idx])}', size=15)
+
+        # raster plot
+        ax1.scatter(spike_times_arr[idx], spike_neurons_arr[idx], marker='o', s=0.05, color='k');
+        ax1.set_ylabel('neuron id')
+        ax1.axvline(x=0, linewidth=2.5, color='xkcd:dark blue', linestyle='--')
+        ax1.axvline(x=stim_time, linewidth=2.5, color='xkcd:dark blue', linestyle='--')
+        ax1.set_xlim([-20, 1000])
+
+        # voltage
+        ax2.plot(times_lst[idx], events_lst[idx]['V_m'], color='xkcd:salmon')
+        ax2.set_ylabel('$V_m$ (mV)')
+        ax2.axvline(x=0, linewidth=2.5, color='xkcd:dark blue', linestyle='--')
+        ax2.axvline(x=stim_time, linewidth=2.5, color='xkcd:dark blue', linestyle='--')
+        #ax2.axis([-20,500,-90,-20])
+        ax2.set_xlim([-20, 1000])
+        
+    def plot(self, transient_mins, transient_means, transient_maxs, x_axis_name, parameter_range):
+        '''
+        takes in a list of transient means and max values, name for the x_axis (the parameter value that is being changed) 
+        and the range of parameter values used.
+
+        Plots the graphs.
+        '''
+        # [mean transient size, mean transient lifetime]
+        trans_size_mins = [i[0] for i in transient_mins]
+        trans_lifetime_mins = [i[1] for i in transient_mins]
+
+        trans_size_means = [i[0] for i in transient_means]
+        trans_lifetime_means = [i[1] for i in transient_means]    
+
+        trans_size_maxs = [item[0] for item in transient_maxs]
+        trans_lifetime_maxs = [item[1] for item in transient_maxs]
+
+        # === Plot ===
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15,5))
+        ax1.plot(parameter_range, trans_size_mins, '--go', label='min transient size');
+        ax1.plot(parameter_range, trans_size_maxs, '--ro', label ='max transient size');
+        ax1.plot(parameter_range, trans_size_means, '--bo', label='mean transient size');
+        ax1.set_xlabel(x_axis_name)
+        ax1.set_ylabel('transient size (neurons)')
+        ax1.legend();
+
+        ax2.plot(parameter_range, trans_lifetime_mins, '--go', label ='min transient times');
+        ax2.plot(parameter_range, trans_lifetime_maxs, '--ro', label ='max transient times');
+        ax2.plot(parameter_range, trans_lifetime_means, '--bo', label='mean transient times');
+        ax2.set_xlabel(x_axis_name);
+        ax2.set_ylabel('transient lifetime (ms)')
+        ax2.legend();

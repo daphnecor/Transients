@@ -1,5 +1,4 @@
-
-# import dependencies
+# dependencies
 import numpy as np
 import nest
 import nest.raster_plot
@@ -45,12 +44,16 @@ class UpDownPatterns:
         self.Asub = self.stim_amps[0]
         self.Asupra = self.stim_amps[1]
         
-    def simulate(self, pattern):
+      
+    def simulate(self, idx, pattern):
         
         # ====== RESET =========
         #TODO check if its better to use ResetNetwork() here 
         nest.ResetKernel() # gets rid of all nodes, customised models and resets internal clock to 0 
+        #nest.ResetNetwork()
         nest.SetKernelStatus({'resolution': self.resolution, 'print_time': False, 'local_num_threads': self.n_threads})
+            
+        print(idx)
         
         # ====== MAKE NEURON POPULATIONS =========
         group_size = int((self.N_total / len(pattern)))
@@ -146,6 +149,8 @@ class UpDownPatterns:
             nest.Connect(neurons_all[:self.NE], neurons_all, conn_spec=conn_dict, syn_spec='syn_ex' )
             nest.Connect(neurons_all[self.NE:], neurons_all, conn_spec=conn_dict, syn_spec='syn_in' )
         
+        # get network connectivity matrix
+        M = nest.GetConnections()
         
         # ====== CONNECT TO DEVICES =========
         nest.Connect(neurons_all, spikedet)
@@ -166,13 +171,9 @@ class UpDownPatterns:
         # multimeter data
         events = nest.GetStatus(multimet)[0]['events']
         etimes = events['times']
+        
 
-        # multimeter data
-        # volt_neuron_ids = nest.GetStatus(multimet, 'events')[0]['senders']
-        # volt_times = nest.GetStatus(multimet, 'events')[0]['times']
-        # volt_trace = nest.GetStatus(multimet, 'events')[0]['V_m']
-
-        return spikedet, multimet, events, etimes, spike_times, spike_neurons
+        return M, spikedet, multimet, events, etimes, spike_times, spike_neurons
     
     
 class HelperFuncs:

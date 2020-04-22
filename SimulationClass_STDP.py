@@ -43,12 +43,17 @@ class UpDownPatterns:
         self.stim_amps = np.array([self.sub_fr, self.sup_fr]) * I_th
         self.Asub = self.stim_amps[0]
         self.Asupra = self.stim_amps[1]
+    
+    def set_status(self):
+        '''
+        ResetKernel and Set the kernel status. Do this once.
+        '''
+        nest.ResetKernel() 
+        nest.SetKernelStatus({'resolution': self.resolution, 'print_time': False, 'local_num_threads': self.n_threads})
         
-      
     def simulate(self, idx, pattern):
         
         # ====== RESET =========
-        #TODO check if its better to use ResetNetwork() here 
         nest.ResetKernel() # gets rid of all nodes, customised models and resets internal clock to 0 
         #nest.ResetNetwork()
         nest.SetKernelStatus({'resolution': self.resolution, 'print_time': False, 'local_num_threads': self.n_threads})
@@ -122,7 +127,7 @@ class UpDownPatterns:
          
             # keep the inhibitory synapses static
             #nest.CopyModel(existing='static_synapse', new='syn_in', params={'weight':self.J_in, 'delay': self.delay})
-            
+        
             # make connections between the two populations
             # from exc neurons to all neurons
             nest.Connect(neurons_all[:self.NE], neurons_all, conn_dict, self.syn_params_ex)
@@ -141,15 +146,18 @@ class UpDownPatterns:
             nest.Connect(neurons_all[self.NE:], neurons_all, conn_dict, self.syn_params_in)
         
         else:
-            # synapses will be static (no change in weights)
-            nest.CopyModel(existing='static_synapse', new='syn_ex', params={'weight':self.J_ex, 'delay': self.delay})
-            nest.CopyModel(existing='static_synapse', new='syn_in', params={'weight':self.J_in, 'delay': self.delay})
+            
+            nest.Connect(neurons_all[:self.NE], neurons_all, conn_dict, static_ex_params)
+            nest.Connect(neurons_all[self.NE:], neurons_all, conn_dict, static_in_params)
+#             # synapses will be static (no change in weights)
+#             nest.CopyModel(existing='static_synapse', new='syn_exc', params={'weight':self.J_ex, 'delay': self.delay})
+#             nest.CopyModel(existing='static_synapse', new='syn_in', params={'weight':self.J_in, 'delay': self.delay})
 
-            # make connections between the two populations
-            nest.Connect(neurons_all[:self.NE], neurons_all, conn_spec=conn_dict, syn_spec='syn_ex' )
-            nest.Connect(neurons_all[self.NE:], neurons_all, conn_spec=conn_dict, syn_spec='syn_in' )
+#             # make connections between the two populations
+#             nest.Connect(neurons_all[:self.NE], neurons_all, conn_spec=conn_dict, syn_spec='syn_exc' )
+#             nest.Connect(neurons_all[self.NE:], neurons_all, conn_spec=conn_dict, syn_spec='syn_in' )
         
-        # get network connectivity matrix
+        # get network connectivity tuple
         M = nest.GetConnections()
         
         # ====== CONNECT TO DEVICES =========
@@ -171,6 +179,9 @@ class UpDownPatterns:
         # multimeter data
         events = nest.GetStatus(multimet)[0]['events']
         etimes = events['times']
+        
+        # reset network for next iteration
+        #nest.ResetNetwork()
         
 
         return M, spikedet, multimet, events, etimes, spike_times, spike_neurons

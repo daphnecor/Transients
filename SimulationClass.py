@@ -1,4 +1,3 @@
-
 # import dependencies
 import numpy as np
 import nest
@@ -43,7 +42,9 @@ class UpDownPatterns:
         # ====== RESET =========
         #TODO check if its better to use ResetNetwork() here 
         nest.ResetKernel() # gets rid of all nodes, customised models and resets internal clock to 0 
+        #nest.ResetNetwork()
         nest.SetKernelStatus({'resolution': self.resolution, 'print_time': False, 'local_num_threads': self.n_threads})
+        
         
         # ====== MAKE NEURON POPULATIONS =========
         group_size = int((self.N_total / len(pattern)))

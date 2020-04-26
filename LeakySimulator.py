@@ -25,7 +25,7 @@ class LeakySimulator:
         self.stim_amps = np.array([self.sim_params['sub_fr'], self.sim_params['sup_fr']]) * I_th
         #print(self.stim_amps)
         
-    def build_network(self):
+    def build_network(self, STDP='NO'):
         '''
         Build the network architecture.
         '''
@@ -57,14 +57,34 @@ class LeakySimulator:
         # ====== DEFINE SYNAPSES & CONNECTIVITY RULE =========
         static_ex_params = {'model':'static_synapse','weight':self.sim_params['J_ex'], 'delay':self.sim_params['delay']}
         static_in_params = {'model':'static_synapse','weight':self.sim_params['J_in'], 'delay':self.sim_params['delay']}
-        
+
         conn_dict = {'rule': 'pairwise_bernoulli', 'p': self.sim_params['eps']} 
-        
-        # ===== CONNECT NEURONS ======
-        nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, static_ex_params)
-        nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
-        
-        #print('Done building network.')
+
+        # only use STDP if explicity mentioned, by default static synapses
+        if STDP == 'exc_only':
+             
+            # from excitatory neurons to all neurons
+            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, self.syn_params_ex)
+            # from interneurons to all neurons
+            nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
+            
+        elif STDP == 'inh_only':
+            pass
+            
+          
+        elif STDP == 'all':
+            
+            syn_STDP = {'model':'stdp_synapse'}
+            
+            # from excitatory neurons to all neurons
+            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, self.syn_params_ex)
+            # from interneurons to all neurons
+            nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, self.syn_params_in)
+            
+        else:    
+            # ===== CONNECT NEURONS ======
+            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, static_ex_params)
+            nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
         
         
     def set_pattern(self, pattern):

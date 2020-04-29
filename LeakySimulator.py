@@ -59,17 +59,30 @@ class LeakySimulator:
         static_in_params = {'model':'static_synapse','weight':self.sim_params['J_in'], 'delay':self.sim_params['delay']}
 
         conn_dict = {'rule': 'pairwise_bernoulli', 'p': self.sim_params['eps']} 
+        
+        stdp_params = {
+        'model':'stdp_synapse', 
+        'delay': 1.5,
+        'alpha': 0.0513,
+        'lambda': 0.1,  # STDP step size
+        'mu_plus': 0.4,  # STDP weight dependence exponent(potentiation)
+        'tau_plus': 15.0,  # time constant for potentiation
+         }
 
         # only use STDP if explicity mentioned, by default static synapses
         if STDP == 'exc_only':
              
             # from excitatory neurons to all neurons
-            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, self.syn_params_ex)
+            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, stdp_params)
             # from interneurons to all neurons
             nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
             
         elif STDP == 'inh_only':
-            pass
+            
+            # from excitatory neurons to all neurons
+            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, static_ex_params)
+            # from interneurons to all neurons
+            nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, self.syn_params_in)
             
           
         elif STDP == 'all':
@@ -144,6 +157,33 @@ class Usefulfunctions:
             yield result
         return 
     
+    def average_firing_rate(self, spike_times, sim_time=1, N=1200):
+    
+        '''
+        input: one list from list of lists (spike_times)
+
+        returns: firing rate for entire population & firing rate per neuron
+        '''
+        time = 1 # simulation time in seconds
+
+        # average firing rate per neuron
+        total_spikes = len(spike_times)
+        fr_pop = total_spikes / sim_time
+        fr_per_neuron = round((total_spikes/N), 2) # divide by total # neurons
+
+        return fr_pop, fr_per_neuron
+    
+    
+    def interspike_intervals(self, spike_times):
+        '''
+        ISI to make a spike histogram
+        '''
+    
+        interspike_intervals = np.diff(spike_times)
+
+        return interspike_intervals
+
+    
     def circshift(self, V, offset=0):
        
         l = len(V)
@@ -170,6 +210,8 @@ class Usefulfunctions:
         # print "last neuron id to fire (reordered): "+str(max(array(neworder)))
         return neworder
     
+    
+   
     
     
     

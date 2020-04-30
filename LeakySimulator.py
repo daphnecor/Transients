@@ -93,20 +93,45 @@ class LeakySimulator:
         
         '''
         Sets the amplitudes (sub or supra threshold) based on the 8 digit pattern that is given.
+        
+        There are two ways to do this
+        
+        OPTION 1:
+            - divide neuron indices in groups of 150 (8 groups)
+            - stimulate either with sub or supra Amplitude based on pattern
+        
+        OPTION 2:
+            - get neuron indices list and do modulus (%) 8 to get a list of 1200 indices consisting of repeated 0-7 nums
+            - set the status of each dc_generator (i.e. the amplitude) based on the pattern
+            CAUTION: if you use this method, make sure to reorder the spikes before making the raster plots!
         '''
-        chunk_size = int(self.sim_params['N_total']/len(pattern)) 
-        indices = list(range(self.sim_params['N_total'])) 
+        
+#         # === OPTION 1 ===
+#         chunk_size = int(self.sim_params['N_total']/len(pattern)) 
+#         indices = list(range(self.sim_params['N_total'])) 
 
-        # divide neuron indices in groups of chunk_size
-        make_n_chunks = [indices[i:i + chunk_size] for i in range(0, len(indices), chunk_size)]
+#         # divide neuron indices in groups of chunk_size
+#         make_n_chunks = [indices[i:i + chunk_size] for i in range(0, len(indices), chunk_size)]
+
+#         for i in range(len(pattern)):
+
+#             stims_i = make_n_chunks[i]
+#             bit = pattern[i] # >>> 0 or 1
+#             nest.SetStatus( list(np.array(self.dcgens)[stims_i]), params={'amplitude': self.stim_amps[bit]} )
+        
+        # === OPTION 2 ===
+        # make assignments (returns list of 1200 items in a range from 0-7)
+        ass = np.arange(1200)%8
 
         for i in range(len(pattern)):
+            # get the indices of all stimulator indices that are i (a number between 0-7)
+            stims_i = np.where( ass == i )[0]
 
-            stims_i = make_n_chunks[i]
+            # assign the right amplitude to these
             bit = pattern[i] # >>> 0 or 1
             nest.SetStatus( list(np.array(self.dcgens)[stims_i]), params={'amplitude': self.stim_amps[bit]} )
-         
-    
+
+        
     def simulate(self):
 
         nest.ResetNetwork() # forget all previous simulation data
@@ -167,22 +192,13 @@ class Usefulfunctions:
         '''
         ISI to make a spike histogram
         '''
-    
         interspike_intervals = np.diff(spike_times)
 
         return interspike_intervals
 
     
-    def circshift(self, V, offset=0):
-       
-        l = len(V)
-        if type(V) is list:
-            return V[-offset%l:]+V[:-offset%l]
-        elif type(V) is np.ndarray:
-            return list(V[-offset%l:])+list(V[:-offset%l])
-    
-    def reorder(self, neuronids, numneurons, numgroups=8, offset=1):
-        
+    def reorder(self, neuronids,numgroups=8, numneurons=1200, offset=1):
+
         neworder = []
         # Per group neuron counts
         Gr = np.array([len(np.where(np.arange(numneurons)%numgroups==n)[0]) for n in range(numgroups-1)])
@@ -192,20 +208,18 @@ class Usefulfunctions:
         for s in neuronids:
             o = s // numgroups
             g = s % numgroups
-            #print(int(g)+into)
-            neworder.append(Gr[int(g)] + o)
+            neworder.append(Gr[g] + o)
             # neworder.append(int(sum(Gr[0:g]) + o))
             # group.append(g)
         # print "last neuron id to fire (reordered): "+str(max(array(neworder)))
         return neworder
+
+    def circshift(self, V, offset=0):
+
+        l = len(V)
+        if type(V) is list:
+            return V[-offset%l:]+V[:-offset%l]
+        elif type(V) is np.ndarray:
+            return list(V[-offset%l:])+list(V[:-offset%l])
     
     
-   
-    
-    
-    
-    
-    
-    
-    
-        

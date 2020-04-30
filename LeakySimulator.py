@@ -59,21 +59,12 @@ class LeakySimulator:
         static_in_params = {'model':'static_synapse','weight':self.sim_params['J_in'], 'delay':self.sim_params['delay']}
 
         conn_dict = {'rule': 'pairwise_bernoulli', 'p': self.sim_params['eps']} 
-        
-        stdp_params = {
-        'model':'stdp_synapse', 
-        'delay': 1.5,
-        'alpha': 0.0513,
-        'lambda': 0.1,  # STDP step size
-        'mu_plus': 0.4,  # STDP weight dependence exponent(potentiation)
-        'tau_plus': 15.0,  # time constant for potentiation
-         }
 
         # only use STDP if explicity mentioned, by default static synapses
         if STDP == 'exc_only':
              
             # from excitatory neurons to all neurons
-            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, stdp_params)
+            nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, self.syn_params_ex)
             # from interneurons to all neurons
             nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
             
@@ -86,8 +77,6 @@ class LeakySimulator:
             
           
         elif STDP == 'all':
-            
-            syn_STDP = {'model':'stdp_synapse'}
             
             # from excitatory neurons to all neurons
             nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, self.syn_params_ex)

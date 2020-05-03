@@ -3,6 +3,8 @@ import numpy as np
 import nest
 import nest.raster_plot
 import itertools
+import powerlaw
+import matplotlib.pyplot as plt
 
 '''
 LIF neurons simulation class.
@@ -221,5 +223,44 @@ class Usefulfunctions:
             return V[-offset%l:]+V[:-offset%l]
         elif type(V) is np.ndarray:
             return list(V[-offset%l:])+list(V[:-offset%l])
+        
+    def compare_distributions(self, data, x_label, plot_hist=False):
     
-    
+        x_min = min(data)
+
+        if plot_hist == True:
+
+            plt.hist(data)
+            plt.xlabel(x_label)
+            plt.ylabel('# experiments');
+
+        # estimate min x and alpha
+        fit = powerlaw.Fit(data)
+        print(f'estimate of alpha: {fit.power_law.alpha}')
+        print(f'estimate of x min: {fit.power_law.xmin}')
+        print(f'Our minimum value: {x_min}')
+
+        # compare the fit of power law compared to lognormal
+        R, p = fit.distribution_compare('power_law', 'lognormal')
+
+        print('========================')
+        if R < 0: 
+            print(f'lognormal is the best fit, R = {round(R,3)}')
+        else: 
+            print(f'power law is the best fit, R = {round(R,3)}')
+
+        if p < 0.05:
+            print(f'R is significant, p = {round(p,3)}')
+        else:
+            print(f'R is not significant, p = {round(p,3)}')
+
+        # plot data
+        ax = plt.axes(xscale='log', yscale='log')
+        ax.grid(True);
+        fit.power_law.plot_pdf(linestyle='--', color='g', label='power_law')
+        fit.exponential.plot_pdf(linestyle='--', color='r', label='exponential')
+        fit.plot_pdf(linewidth=2, label='my data');
+        plt.legend();
+        plt.ylabel("Probability")
+        plt.xlabel(x_label);
+

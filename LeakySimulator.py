@@ -70,6 +70,8 @@ class LeakySimulator:
             # from interneurons to all neurons
             nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
             
+            conns = nest.GetConnections()
+            
         elif STDP == 'inh_only':
             
             # from excitatory neurons to all neurons
@@ -77,6 +79,7 @@ class LeakySimulator:
             # from interneurons to all neurons
             nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, self.syn_params_in)
             
+            conns = nest.GetConnections()
           
         elif STDP == 'all':
             
@@ -90,6 +93,9 @@ class LeakySimulator:
             nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, static_ex_params)
             nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, static_in_params)
         
+            conns = nest.GetConnections() # return connections of only the neurons synapses
+            
+        return conns
         
     def set_pattern(self, pattern):
         
@@ -147,9 +153,13 @@ class LeakySimulator:
         events = nest.GetStatus(self.multimet)[0]['events']
         etimes = events['times']
         
-        return self.spikedet, self.multimet, spike_times, spike_neurons, events, etimes
-
-
+        # get the connections
+        stdp_conns = nest.GetConnections(synapse_model="stdp_synapse")
+        static_conns = nest.GetConnections(synapse_model="static_synapse")
+        
+        return self.spikedet, self.multimet, spike_times, spike_neurons, events, etimes, stdp_conns, static_conns
+    
+    
 '''
 Other functions that are useful.
 '''

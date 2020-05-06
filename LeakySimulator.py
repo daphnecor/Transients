@@ -88,6 +88,8 @@ class LeakySimulator:
             # from interneurons to all neurons
             nest.Connect(self.neuron_ids[self.sim_params['NE']:], self.neuron_ids, conn_dict, self.syn_params_in)
             
+            conns = nest.GetConnections()
+            
         else:    
             # ===== CONNECT NEURONS ======
             nest.Connect(self.neuron_ids[:self.sim_params['NE']], self.neuron_ids, conn_dict, static_ex_params)
@@ -154,10 +156,10 @@ class LeakySimulator:
         etimes = events['times']
         
         # get the connections
-        stdp_conns = nest.GetConnections(synapse_model="stdp_synapse")
-        static_conns = nest.GetConnections(synapse_model="static_synapse")
+#         stdp_conns = nest.GetConnections(synapse_model="stdp_synapse")
+#         static_conns = nest.GetConnections(synapse_model="static_synapse")
         
-        return self.spikedet, self.multimet, spike_times, spike_neurons, events, etimes, stdp_conns, static_conns
+        return self.spikedet, self.multimet, spike_times, spike_neurons, events, etimes
     
     
 '''

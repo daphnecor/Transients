@@ -48,7 +48,8 @@ class LeakySimulator:
         nest.SetStatus(self.spikedet, params={"withgid": True, "withtime": True})
 
         # create and configure multimeter that records the voltage (V_m)
-        self.multimet = nest.Create('multimeter', params={'record_from': ['V_m']})
+        # we create a single multimeter to observe all the neurons
+        self.multimet = nest.Create('multimeter', params={'record_from': ['V_m']}) 
         nest.SetStatus(self.multimet, params={'interval':1.})
         
         # ====== CONNECT NEURONS TO DEVICES =========

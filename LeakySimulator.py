@@ -32,7 +32,7 @@ class LeakySimulator:
         Build the network architecture.
         '''
         nest.ResetKernel() 
-        nest.SetKernelStatus({'resolution': self.sim_params['resolution'], 'print_time': False, \
+        nest.SetKernelStatus({'grng_seed':1, 'resolution': self.sim_params['resolution'], 'print_time': False, \
                               'local_num_threads':self.sim_params['n_threads']})
         
         # ====== CREATE NEURONS =========
@@ -144,10 +144,12 @@ class LeakySimulator:
 
         
     def simulate(self):
-
+        
+        simtime = self.sim_params['simtime']
+        
         nest.ResetNetwork() # forget all previous simulation data
         nest.SetKernelStatus({'time':0.}) # turn back the clock
-        nest.Simulate(1000.) # simulate for a certain time period (ms)
+        nest.Simulate(simtime) # simulate for a certain time period (ms)
         
         # === GET DATA ===
         spike_times = nest.GetStatus(self.spikedet, 'events')[0]['times']
@@ -254,7 +256,7 @@ class Usefulfunctions:
         print(f'Our minimum value: {x_min}')
 
         # compare the fit of power law compared to lognormal
-        R, p = fit.distribution_compare('power_law', 'lognormal')
+        R, p = fit.distribution_compare('power_law', 'exponential')
 
         print('========================')
         if R < 0: 
@@ -270,8 +272,8 @@ class Usefulfunctions:
         # plot data
         ax = plt.axes(xscale='log', yscale='log')
         ax.grid(True);
-        fit.power_law.plot_pdf(linestyle='--', color='g', label='power_law')
-        fit.exponential.plot_pdf(linestyle='--', color='r', label='exponential')
+        fit.power_law.plot_pdf(linestyle='--', color='#3c4142', label='power_law')
+        fit.exponential.plot_pdf(linestyle='--', color='#748b97', label='exponential')
         fit.plot_pdf(linewidth=2, label='my data');
         plt.legend();
         plt.ylabel("Probability")

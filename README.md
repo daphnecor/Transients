@@ -4,4 +4,4 @@ This repository contains the code used for the simulation and analysis of networ
 
 ## The Neural Simulation Tool
 
-We use the simulator NEST to implement a network of `iaf_cond_alpha` neurons, which are spiking neurons that use integrate-and-fire (IAF) dynamics with conductance-based synapses (Gewaltig and Diesmann, 2007).
+We use the simulator NEST to implement a network of `iaf_cond_alpha` neurons, which are spiking neurons that use integrate-and-fire (IAF) dynamics with conductance-based synapses.
